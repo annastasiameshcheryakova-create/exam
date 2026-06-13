@@ -65,3 +65,21 @@ function getRecommendations(personId) {
         .slice(0, 5);
     return recs;
 }
+// data.js
+// ... (початок файлу без змін)
+
+function getRecommendations(personId) {
+    const person = people[personId];
+    
+    const recs = people
+        .filter(p => p.id !== personId)
+        .map(p => {
+            const sim = calculateSimilarity(person, p);
+            return { ...p, similarity: sim };
+        })
+        .filter(p => p.similarity > 0)                    // ← НОВЕ: тільки > 0%
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 6);
+
+    return recs;
+}
