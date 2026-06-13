@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C.2.4 Теорія графів - Соціальна мережа</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.23.0/cytoscape.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🕸️ Мережа Дружби</h1>
+            <p>Інтерактивна демонстрація теорії графів • Вершини = Люди • Ребра = Дружба</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Граф -->
+            <div class="graph-container">
+                <div id="cy" class="cytoscape"></div>
+                <div class="graph-controls">
+                    <button onclick="resetGraph()">🔄 Скинути позиції</button>
+                    <button onclick="toggleLayout()">📐 Змінити布局</button>
+                    <button onclick="addRandomEdge()">➕ Додати випадковий зв'язок</button>
+                    <button onclick="removeRandomEdge()">➖ Видалити випадковий зв'язок</button>
+                </div>
+            </div>
+
+            <!-- Панель управління -->
+            <div class="sidebar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Пошук людини..." onkeyup="searchPerson()">
+                    <button onclick="searchPerson()"><i class="fas fa-search"></i></button>
+                </div>
+
+                <div class="section">
+                    <h3>Рекомендовані друзі</h3>
+                    <div id="recommendations" class="recommendations-list"></div>
+                </div>
+
+                <div class="section">
+                    <h3>Статистика мережі</h3>
+                    <div id="stats" class="stats"></div>
+                </div>
+
+                <div class="section">
+                    <h3>Пошук спільних інтересів</h3>
+                    <select id="person1" onchange="findCommonInterests()"></select>
+                    <select id="person2" onchange="findCommonInterests()"></select>
+                    <div id="commonInterests" class="common-interests"></div>
+                </div>
+
+                <button onclick="showAllPeople()" class="btn-primary">Показати всіх людей</button>
+            </div>
+        </div>
+
+        <!-- Модальне вікно для профілю -->
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <div id="modal-body"></div>
+                <div class="modal-actions">
+                    <button id="connectBtn" onclick="toggleConnection()">Додати/Видалити зв'язок</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Список всіх людей -->
+        <div id="allPeopleModal" class="modal">
+            <div class="modal-content large">
+                <span class="close" onclick="closeAllPeopleModal()">&times;</span>
+                <h2>Всі учасники мережі (30+)</h2>
+                <div id="allPeopleList" class="people-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Реалізовано для демонстрації теорії графів • WebXR / Graph Neural Networks ready</p>
+    </footer>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
