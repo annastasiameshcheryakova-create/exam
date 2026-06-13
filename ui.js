@@ -1,177 +1,162 @@
-// graph.js
-let svg, simulation, nodes, links;
-let isAddMode = false;
+// ui.js
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    
+    document.querySelectorAll('.menu a').forEach((el, i) => {
+        if (i === tab) el.classList.add('active');
+        else el.classList.remove('active');
+    });
+    
+    if (tab === 1) renderProfiles();
+    if (tab === 2) renderAllRecommendations();
+    if (tab === 3) renderInterestsCloud();
+}
 
-function initGraph() {
-    svg = d3.select("#graph-svg");
-    svg.selectAll("*").remove();
+function renderProfiles() {
+    const container = document.getElementById("profile-grid");
+    container.innerHTML = people.map(p => `
+        <div class="profile-card" onclick="showNodeInfo(people[${p.id}])">
+            <h3>${p.name}</h3>
+            <div class="interests">
+                ${p.interests.map(i => `<span class="interest-tag">${i}</span>`).join('')}
+            </div>
+            <div style="margin-top: 16px; font-size: 13px;">
+                Друзів: ${edges.filter(e => e[0] === p.id || e[1] === p.id).length}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderAllRecommendations() {
+    const container = document.getElementById("recommendations-list");
+    let html = '';
     
-    const width = window.innerWidth - 600;
-    const height = window.innerHeight - 120;
-    
-    simulation = d3.forceSimulation(people)
-        .force("link", d3.forceLink().id(d => d.id).distance(120))
-        .force("charge", d3.forceManyBody().strength(-800))
-        .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(35));
-    
-    // Links
-    links = svg.append("g")
-        .selectAll("line")
-        .data(edges)
-        .enter()
-        .append("line")
-        .attr("stroke", "#555588")
-        .attr("stroke-width", 2.5)
-        .attr("stroke-opacity", 0.7);
-    
-    // Nodes
-    nodes = svg.append("g")
-        .selectAll("g")
-        .data(people)
-        .enter()
-        .append("g")
-        .call(d3.drag()
-            .on("start", dragstarted)
-            .on("drag", dragged)
-            .on("end", dragended));
-    
-    nodes.append("circle")
-        .attr("r", 22)
-        .attr("fill", "#6464ff")
-        .attr("stroke", "#a0a0ff")
-        .attr("stroke-width", 3);
-    
-    nodes.append("text")
-        .attr("text-anchor", "middle")
-        .attr("dy", 6)
-        .attr("fill", "white")
-        .style("font-size", "11px")
-        .style("font-weight", "600")
-        .text(d => d.name.split(" ")[0]);
-    
-    nodes.on("click", function(event, d) {
-        if (isAddMode) {
-            handleNodeClickForConnection(d);
-        } else {
-            showNodeInfo(d);
+    people.forEach(person => {
+        const recs = getRecommendations(person.id);
+        if (recs.length > 0) {
+            html += `
+                <div class="rec-card">
+                    <div>
+                        <strong>${person.name}</strong> → 
+                        <span style="color:#a0a0ff">${recs[0].name}</span>
+                        <span style="font-size:12px; opacity:0.7"> (${Math.round(recs[0].similarity * 100)}%)</span>
+                    </div>
+                    <button onclick="connectPersonToRecommended(${person.id}, ${recs[0].id}); event.stopImmediatePropagation()" class="btn primary" style="padding: 6px 16px; font-size: 13px;">Додати</button>
+                </div>
+            `;
         }
     });
     
-    simulation.on("tick", () => {
-        links
-            .attr("x1", d => people[d[0]].x)
-            .attr("y1", d => people[d[0]].y)
-            .attr("x2", d => people[d[1]].x)
-            .attr("y2", d => people[d[1]].y);
-        
-        nodes
-            .attr("transform", d => `translate(${d.x},${d.y})`);
+    container.innerHTML = html;
+}
+
+function renderInterestsCloud() {
+    const allInts = {};
+    people.forEach(p => {
+        p.interests.forEach(i => {
+            allInts[i] = (allInts[i] || 0) + 1;
+        });
     });
     
-    simulation.force("link").links(edges.map(e => ({source: e[0], target: e[1]})));
-    simulation.alpha(1).restart();
+    const container = document.getElementById("all-interests");
+    container.innerHTML = Object.keys(allInts)
+        .sort((a,b) => allInts[b] - allInts[a])
+        .map(int => `
+            <span class="interest-cloud-tag">${int} <span style="font-size:11px; opacity:0.6">(${allInts[int]})</span></span>
+        `).join('');
 }
 
-function dragstarted(event) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    event.subject.fx = event.subject.x;
-    event.subject.fy = event.subject.y;
-}
-
-function dragged(event) {
-    event.subject.fx = event.x;
-    event.subject.fy = event.y;
-}
-
-function dragended(event) {
-    if (!event.active) simulation.alphaTarget(0);
-    event.subject.fx = null;
-    event.subject.fy = null;
-}
-
-function updateGraph() {
-    // Rebind data
-    links = links.data(edges);
-    links.exit().remove();
-    links = links.enter().append("line")
-        .attr("stroke", "#555588")
-        .attr("stroke-width", 2.5)
-        .merge(links);
-    
-    simulation.force("link").links(edges.map(e => ({source: e[0], target: e[1]})));
-    simulation.alpha(0.6).restart();
-}
-
-function showNodeInfo(person) {
-    const infoDiv = document.getElementById("node-info");
-    infoDiv.innerHTML = `
-        <h3>${person.name}</h3>
-        <div class="interests">
-            ${person.interests.map(i => `<span class="interest-tag">${i}</span>`).join('')}
-        </div>
-        <p style="margin-top: 20px; font-size: 14px; opacity: 0.8;">
-            Рекомендований друг: <strong>${getRecommendations(person.id)[0].name}</strong>
-        </p>
-        <button onclick="connectToRecommended(${person.id})" class="btn primary" style="margin-top: 16px; width: 100%;">
-            Додати рекомендованого друга
-        </button>
-    `;
-}
-
-function handleNodeClickForConnection(person) {
-    selectedNodes.push(person.id);
-    if (selectedNodes.length === 2) {
-        showConnectModal();
+function searchPeople(e) {
+    if (e.key === "Enter") {
+        const term = document.getElementById("global-search").value.toLowerCase();
+        const found = people.find(p => p.name.toLowerCase().includes(term));
+        if (found) {
+            showNodeInfo(found);
+            switchTab(0);
+        }
     }
 }
 
-function showConnectModal() {
-    const p1 = people[selectedNodes[0]];
-    const p2 = people[selectedNodes[1]];
+function addRandomEdge() {
+    let a = Math.floor(Math.random() * people.length);
+    let b = Math.floor(Math.random() * people.length);
+    while (a === b) b = Math.floor(Math.random() * people.length);
     
-    document.getElementById("modal-person1").textContent = p1.name;
-    document.getElementById("modal-person2").textContent = p2.name;
-    
-    const exists = edges.some(e => 
-        (e[0] === selectedNodes[0] && e[1] === selectedNodes[1]) || 
-        (e[0] === selectedNodes[1] && e[1] === selectedNodes[0])
-    );
-    
-    document.getElementById("connect-btn").textContent = exists ? "Розірвати зв'язок" : "Під'єднати друзів";
-    document.getElementById("connect-modal").style.display = "flex";
-}
-
-function toggleConnection() {
-    const a = Math.min(selectedNodes[0], selectedNodes[1]);
-    const b = Math.max(selectedNodes[0], selectedNodes[1]);
-    
-    const index = edges.findIndex(e => (e[0] === a && e[1] === b) || (e[0] === b && e[1] === a));
-    
-    if (index !== -1) {
-        edges.splice(index, 1);
-    } else {
+    const exists = edges.some(e => (e[0] === a && e[1] === b) || (e[0] === b && e[1] === a));
+    if (!exists) {
         edges.push([a, b]);
+        updateGraph();
+        document.getElementById("total-edges").textContent = edges.length;
     }
-    
-    closeModal();
+}
+
+function randomizeConnections() {
+    edges = [];
+    for (let i = 0; i < 75; i++) {
+        const a = Math.floor(Math.random() * people.length);
+        let b = Math.floor(Math.random() * people.length);
+        while (b === a) b = Math.floor(Math.random() * people.length);
+        if (!edges.some(e => (e[0] === a && e[1] === b) || (e[0] === b && e[1] === a))) {
+            edges.push([a, b]);
+        }
+    }
     updateGraph();
     document.getElementById("total-edges").textContent = edges.length;
 }
 
-function closeModal() {
-    document.getElementById("connect-modal").style.display = "none";
-    selectedNodes = [];
-}
-
-function toggleAddMode() {
-    isAddMode = !isAddMode;
-    const fab = document.getElementById("fab");
-    if (isAddMode) {
-        fab.style.background = "#ff6464";
-        fab.innerHTML = '<i class="fas fa-hand-pointer"></i>';
-    } else {
-        fab.style.background = "#6464ff";
-        fab.innerHTML = '<i class="fas fa-plus"></i>';
+function resetGraph() {
+    if (confirm("Скинути всі зв'язки?")) {
+        edges = [];
+        updateGraph();
+        document.getElementById("total-edges").textContent = 0;
     }
 }
+
+function connectToRecommended(personId) {
+    const rec = getRecommendations(personId)[0];
+    const a = Math.min(personId, rec.id);
+    const b = Math.max(personId, rec.id);
+    if (!edges.some(e => (e[0] === a && e[1] === b))) {
+        edges.push([a, b]);
+        updateGraph();
+        document.getElementById("total-edges").textContent = edges.length;
+        alert(`Додано зв'язок: ${people[personId].name} та ${rec.name}`);
+    }
+}
+
+function connectPersonToRecommended(personId, recId) {
+    const a = Math.min(personId, recId);
+    const b = Math.max(personId, recId);
+    if (!edges.some(e => (e[0] === a && e[1] === b))) {
+        edges.push([a, b]);
+        updateGraph();
+        document.getElementById("total-edges").textContent = edges.length;
+        renderAllRecommendations();
+    }
+}
+
+function showRecommendationsInPanel() {
+    const person = people[Math.floor(Math.random() * people.length)];
+    showNodeInfo(person);
+}
+
+// Initialize everything
+window.onload = function() {
+    generatePeople(28);
+    document.getElementById("total-people").textContent = people.length;
+    document.getElementById("total-edges").textContent = edges.length;
+    
+    initGraph();
+    switchTab(0);
+    
+    // Keyboard shortcuts
+    document.addEventListener("keydown", e => {
+        if (e.key === "r" && e.ctrlKey) {
+            e.preventDefault();
+            randomizeConnections();
+        }
+    });
+    
+    console.log("%cМережаЗв'язків завантажена успішно ✓", "color:#a0a0ff; font-size:14px");
+};
