@@ -228,3 +228,32 @@ function showToast(message) {
         toast.classList.add("hidden");
     }, 3000);
 }
+// ui.js (додати ці функції до існуючого файлу)
+
+function randomizeConnections() {
+    edges = [];
+    const count = people.length;
+    // Генеруємо 50 випадкових зв'язків
+    for (let i = 0; i < 50; i++) {
+        let a = Math.floor(Math.random() * count);
+        let b = Math.floor(Math.random() * count);
+        if (a !== b && !edges.some(e => (e[0] === a && e[1] === b) || (e[0] === b && e[1] === a))) {
+            edges.push([a, b]);
+        }
+    }
+    updateGraphElements();
+    updateStats();
+}
+
+function clearAllConnections() {
+    if(confirm("Ви впевнені, що хочете розірвати всі зв'язки?")) {
+        edges = [];
+        updateGraphElements();
+        updateStats();
+    }
+}
+
+function updateStats() {
+    document.getElementById("total-people").textContent = people.length;
+    document.getElementById("total-edges").textContent = edges.length;
+}
