@@ -1,34 +1,176 @@
 // ui.js
-function switchTab(tab) {
+document.addEventListener("DOMContentLoaded", () => {
+    generatePeople(25);
+    initGraph();
+    updateStats();
+    
+    document.getElementById("graph-svg").addEventListener("click", () => {
+        if(!isAddMode) resetHighlights();
+    });
+});
+
+function updateStats() {
+    document.getElementById("total-people").textContent = people.length;
+    document.getElementById("total-edges").textContent = edges.length;
+}
+
+function switchTab(tabIndex) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.getElementById(`tab-${tabIndex}`).classList.add('active');
     
     document.querySelectorAll('.menu a').forEach((el, i) => {
-        if (i === tab) el.classList.add('active');
+        if (i === tabIndex) el.classList.add('active');
         else el.classList.remove('active');
     });
     
-    if (tab === 1) renderProfiles();
-    if (tab === 2) renderAllRecommendations();
-    if (tab === 3) renderInterestsCloud();
+    if (tabIndex === 1) renderProfiles();
+    if (tabIndex === 2) renderRecommendationsTab();
+    if (tabIndex === 3) renderInterests();
 }
 
+function toggleAddMode() {
+    isAddMode = !isAddMode;
+    const fab = document.getElementById("fab");
+    selectedForConnection = null;
+    
+    if (isAddMode) {
+        fab.classList.add("active");
+        fab.innerHTML = '<i class="fas fa-magic"></i>';
+        showToast("Режим редагування зв'язків: УВІМКНЕНО. Клікайте на вершини.");
+        document.getElementById("graph-svg").style.cursor = "crosshair";
+    } else {
+        fab.classList.remove("active");
+        fab.innerHTML = '<i class="fas fa-link"></i>';
+        showToast("Режим редагування: ВИМКНЕНО.");
+        document.getElementById("graph-svg").style.cursor = "grab";
+        resetHighlights();
+    }
+}
+
+function openNodePanel(person) {
+    const panel = document.getElementById("floating-panel");
+    document.getElementById("panel-name").textContent = person.name;
+    document.getElementById("panel-avatar").textContent = person.name[0];
+    
+    // Interests
+    const intsContainer = document.getElementById("panel-interests");
+    intsContainer.innerHTML = person.interests.map(i => `<span class="interest-tag">${i}</span>`).join('');
+    
+    // Recommendation
+    const recs = getRecommendations(person.id);
+    const recContainer = document.getElementById("panel-recommendation");
+    
+    if (recs.length > 0) {
+        const topRec = recs[0];
+        const shared = getSharedInterests(person.id, topRec.id);
+        recContainer.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center">
+                <strong>${topRec.name}</strong>
+                <span style="color:var(--accent-pink)">${Math.round(topRec.similarity * 100)}% збіг</span>
+            </div>
+            <div style="font-size:11px; margin-top:4px; opacity:0.8">Спільне: ${shared.join(', ')}</div>
+            <button onclick="quickAddFriend(${person.id}, ${topRec.id})" class="btn outline-pink full-width mt-4" style="padding: 6px;">
+                <i class="fas fa-user-plus"></i> Додати
+            </button>
+        `;
+    } else {
+        recContainer.innerHTML = "<div style='opacity:0.6'>Немає ідеальних рекомендацій</div>";
+    }
+    
+    panel.dataset.currentId = person.id;
+    panel.classList.remove("hidden");
+}
+
+function closeFloatingPanel() {
+    document.getElementById("floating-panel").classList.add("hidden");
+    resetHighlights();
+}
+
+function quickAddFriend(id1, id2) {
+    addEdge(id1, id2);
+    updateGraphElements();
+    showToast("Друга додано!");
+    openNodePanel(people.find(p => p.id === id1)); // refresh panel
+}
+
+function highlightSimilarNodes() {
+    const panel = document.getElementById("floating-panel");
+    const targetId = parseInt(panel.dataset.currentId);
+    animateSearch(targetId);
+}
+
+function findHub() {
+    switchTab(0);
+    // Calculate degree centrality
+    let maxEdges = 0;
+    let hubId = null;
+    
+    people.forEach(p => {
+        const degree = edges.filter(e => e[0] === p.id || e[1] === p.id).length;
+        if (degree > maxEdges) {
+            maxEdges = degree;
+            hubId = p.id;
+        }
+    });
+    
+    if (hubId !== null) {
+        openNodePanel(people.find(p => p.id === hubId));
+        animateSearch(hubId);
+        showToast(`Хаб знайдено: ${people.find(p => p.id === hubId).name} має ${maxEdges} зв'язків!`);
+    }
+}
+
+function randomizeConnections() {
+    edges = [];
+    const count = people.length;
+    for (let i = 0; i < 70; i++) {
+        let a = Math.floor(Math.random() * count);
+        let b = Math.floor(Math.random() * count);
+        if (a !== b) addEdge(a, b);
+    }
+    updateGraphElements();
+    showToast("Зв'язки рандомізовано.");
+}
+
+function resetGraph() {
+    edges = [];
+    updateGraphElements();
+    showToast("Граф очищено.");
+}
+
+function searchPeople(e) {
+    if (e.key === "Enter") {
+        const term = e.target.value.toLowerCase();
+        const found = people.find(p => p.name.toLowerCase().includes(term));
+        if (found) {
+            switchTab(0);
+            openNodePanel(found);
+            animateSearch(found.id);
+        } else {
+            showToast("Людину не знайдено");
+        }
+    }
+}
+
+// Renders for other tabs
 function renderProfiles() {
     const container = document.getElementById("profile-grid");
-    container.innerHTML = people.map(p => `
-        <div class="profile-card" onclick="showNodeInfo(people[${p.id}])">
-            <h3>${p.name}</h3>
+    container.innerHTML = people.map(p => {
+        const degree = edges.filter(e => e[0] === p.id || e[1] === p.id).length;
+        return `
+        <div class="profile-card" onclick="switchTab(0); openNodePanel(people[${p.id}]); animateSearch(${p.id})">
+            <h3 style="color:var(--accent-pink); margin-bottom:12px;">${p.name}</h3>
             <div class="interests">
                 ${p.interests.map(i => `<span class="interest-tag">${i}</span>`).join('')}
             </div>
-            <div style="margin-top: 16px; font-size: 13px;">
-                Друзів: ${edges.filter(e => e[0] === p.id || e[1] === p.id).length}
+            <div style="margin-top:16px; font-size:13px; color:var(--text-muted)">
+                <i class="fas fa-link"></i> Зв'язків: ${degree}
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
-function renderAllRecommendations() {
+function renderRecommendationsTab() {
     const container = document.getElementById("recommendations-list");
     let html = '';
     
@@ -38,11 +180,16 @@ function renderAllRecommendations() {
             html += `
                 <div class="rec-card">
                     <div>
-                        <strong>${person.name}</strong> → 
-                        <span style="color:#a0a0ff">${recs[0].name}</span>
-                        <span style="font-size:12px; opacity:0.7"> (${Math.round(recs[0].similarity * 100)}%)</span>
+                        <strong style="color:white">${person.name}</strong> 
+                        <i class="fas fa-arrow-right mx-2" style="color:var(--text-muted); font-size:12px; margin:0 10px;"></i> 
+                        <span style="color:var(--accent-pink)">${recs[0].name}</span>
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:5px;">
+                            Збіг: ${Math.round(recs[0].similarity * 100)}% | Спільне: ${recs[0].shared.join(', ')}
+                        </div>
                     </div>
-                    <button onclick="connectPersonToRecommended(${person.id}, ${recs[0].id}); event.stopImmediatePropagation()" class="btn primary" style="padding: 6px 16px; font-size: 13px;">Додати</button>
+                    <button onclick="quickAddFriend(${person.id}, ${recs[0].id}); switchTab(0)" class="btn outline-pink">
+                        <i class="fas fa-plus"></i>
+                    </button>
                 </div>
             `;
         }
@@ -51,112 +198,33 @@ function renderAllRecommendations() {
     container.innerHTML = html;
 }
 
-function renderInterestsCloud() {
-    const allInts = {};
+function renderInterests() {
+    const counts = {};
     people.forEach(p => {
         p.interests.forEach(i => {
-            allInts[i] = (allInts[i] || 0) + 1;
+            counts[i] = (counts[i] || 0) + 1;
         });
     });
     
     const container = document.getElementById("all-interests");
-    container.innerHTML = Object.keys(allInts)
-        .sort((a,b) => allInts[b] - allInts[a])
-        .map(int => `
-            <span class="interest-cloud-tag">${int} <span style="font-size:11px; opacity:0.6">(${allInts[int]})</span></span>
+    container.innerHTML = Object.entries(counts)
+        .sort((a,b) => b[1] - a[1])
+        .map(([int, count]) => `
+            <div class="interest-tag" style="font-size:14px; padding:8px 16px; background:rgba(255,126,179,0.1); border-color:var(--accent-pink)">
+                ${int} <span style="opacity:0.6; margin-left:6px;">${count}</span>
+            </div>
         `).join('');
 }
 
-function searchPeople(e) {
-    if (e.key === "Enter") {
-        const term = document.getElementById("global-search").value.toLowerCase();
-        const found = people.find(p => p.name.toLowerCase().includes(term));
-        if (found) {
-            showNodeInfo(found);
-            switchTab(0);
-        }
-    }
-}
-
-function addRandomEdge() {
-    let a = Math.floor(Math.random() * people.length);
-    let b = Math.floor(Math.random() * people.length);
-    while (a === b) b = Math.floor(Math.random() * people.length);
+// Toast Notification System
+let toastTimeout;
+function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.classList.remove("hidden");
     
-    const exists = edges.some(e => (e[0] === a && e[1] === b) || (e[0] === b && e[1] === a));
-    if (!exists) {
-        edges.push([a, b]);
-        updateGraph();
-        document.getElementById("total-edges").textContent = edges.length;
-    }
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        toast.classList.add("hidden");
+    }, 3000);
 }
-
-function randomizeConnections() {
-    edges = [];
-    for (let i = 0; i < 75; i++) {
-        const a = Math.floor(Math.random() * people.length);
-        let b = Math.floor(Math.random() * people.length);
-        while (b === a) b = Math.floor(Math.random() * people.length);
-        if (!edges.some(e => (e[0] === a && e[1] === b) || (e[0] === b && e[1] === a))) {
-            edges.push([a, b]);
-        }
-    }
-    updateGraph();
-    document.getElementById("total-edges").textContent = edges.length;
-}
-
-function resetGraph() {
-    if (confirm("Скинути всі зв'язки?")) {
-        edges = [];
-        updateGraph();
-        document.getElementById("total-edges").textContent = 0;
-    }
-}
-
-function connectToRecommended(personId) {
-    const rec = getRecommendations(personId)[0];
-    const a = Math.min(personId, rec.id);
-    const b = Math.max(personId, rec.id);
-    if (!edges.some(e => (e[0] === a && e[1] === b))) {
-        edges.push([a, b]);
-        updateGraph();
-        document.getElementById("total-edges").textContent = edges.length;
-        alert(`Додано зв'язок: ${people[personId].name} та ${rec.name}`);
-    }
-}
-
-function connectPersonToRecommended(personId, recId) {
-    const a = Math.min(personId, recId);
-    const b = Math.max(personId, recId);
-    if (!edges.some(e => (e[0] === a && e[1] === b))) {
-        edges.push([a, b]);
-        updateGraph();
-        document.getElementById("total-edges").textContent = edges.length;
-        renderAllRecommendations();
-    }
-}
-
-function showRecommendationsInPanel() {
-    const person = people[Math.floor(Math.random() * people.length)];
-    showNodeInfo(person);
-}
-
-// Initialize everything
-window.onload = function() {
-    generatePeople(28);
-    document.getElementById("total-people").textContent = people.length;
-    document.getElementById("total-edges").textContent = edges.length;
-    
-    initGraph();
-    switchTab(0);
-    
-    // Keyboard shortcuts
-    document.addEventListener("keydown", e => {
-        if (e.key === "r" && e.ctrlKey) {
-            e.preventDefault();
-            randomizeConnections();
-        }
-    });
-    
-    console.log("%cМережаЗв'язків завантажена успішно ✓", "color:#a0a0ff; font-size:14px");
-};
