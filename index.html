@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -11,116 +10,117 @@
 </head>
 <body>
     <div class="app">
-        <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar glass-panel">
             <div class="logo">
                 <i class="fas fa-project-diagram"></i>
                 <h1>МережаЗв'язків</h1>
             </div>
             
             <nav class="menu">
-                <a href="#" onclick="switchTab(0)" class="active"><i class="fas fa-users"></i> Граф</a>
-                <a href="#" onclick="switchTab(1)"><i class="fas fa-user"></i> Профіль</a>
-                <a href="#" onclick="switchTab(2)"><i class="fas fa-search"></i> Рекомендації</a>
-                <a href="#" onclick="switchTab(3)"><i class="fas fa-heart"></i> Інтереси</a>
+                <a href="#" onclick="switchTab(0)" class="active"><i class="fas fa-network-wired"></i> Граф</a>
+                <a href="#" onclick="switchTab(1)"><i class="fas fa-users"></i> Профілі</a>
+                <a href="#" onclick="switchTab(2)"><i class="fas fa-star"></i> Рекомендації</a>
+                <a href="#" onclick="switchTab(3)"><i class="fas fa-hashtag"></i> Інтереси</a>
             </nav>
             
             <div class="stats">
-                <div class="stat-item">
-                    <span class="stat-value" id="total-people">28</span>
-                    <span class="stat-label">Людей</span>
+                <div class="stat-item glass-panel">
+                    <span class="stat-value" id="total-people">0</span>
+                    <span class="stat-label">Вершин</span>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="total-edges">87</span>
+                <div class="stat-item glass-panel">
+                    <span class="stat-value" id="total-edges">0</span>
                     <span class="stat-label">Зв'язків</span>
                 </div>
             </div>
             
             <div class="search-box">
-                <input type="text" id="global-search" placeholder="Пошук людини..." onkeyup="searchPeople(event)">
+                <input type="text" id="global-search" placeholder="Пошук людини (Enter)..." onkeyup="searchPeople(event)">
             </div>
         </div>
         
-        <!-- Main Content -->
         <div class="main-content">
-            <!-- Header -->
-            <header>
-                <h2 id="page-title">Інтерактивний Граф Соцмережі</h2>
+            <header class="glass-panel">
+                <h2 id="page-title">Топологія Соціальної Мережі</h2>
                 <div class="header-actions">
-                    <button onclick="randomizeConnections()" class="btn secondary">
-                        <i class="fas fa-random"></i> Рандомізувати зв'язки
+                    <button onclick="findHub()" class="btn outline-pink">
+                        <i class="fas fa-bullseye"></i> Знайти Хаб
                     </button>
-                    <button onclick="resetGraph()" class="btn secondary">
-                        <i class="fas fa-undo"></i> Скинути
+                    <button onclick="randomizeConnections()" class="btn secondary">
+                        <i class="fas fa-random"></i> Рандомізувати
+                    </button>
+                    <button onclick="resetGraph()" class="btn danger">
+                        <i class="fas fa-trash-alt"></i> Очистити
                     </button>
                 </div>
             </header>
             
-            <!-- Graph Tab -->
             <div id="tab-0" class="tab-content active">
-                <div class="graph-container">
-                    <svg id="graph-svg" width="100%" height="100%"></svg>
-                    <div class="graph-legend">
-                        <div><span class="node-dot"></span> — Людина</div>
-                        <div><span class="edge-line"></span> — Дружба</div>
-                    </div>
-                </div>
-                
-                <div class="side-panel">
-                    <h3>Інформація про вершину</h3>
-                    <div id="node-info" class="node-info">
-                        <p class="placeholder">Клікніть на людину на графі</p>
+                <div class="graph-wrapper">
+                    <div class="graph-container glass-panel">
+                        <svg id="graph-svg" width="100%" height="100%"></svg>
+                        <div class="graph-legend glass-panel">
+                            <div><span class="node-dot"></span> Вершина (Людина)</div>
+                            <div><span class="edge-line"></span> Грань (Зв'язок)</div>
+                            <div style="margin-top: 8px; font-size: 11px; opacity: 0.7;">Товщина лінії = Сила зв'язку</div>
+                        </div>
                     </div>
                     
-                    <h3 style="margin-top: 30px;">Дії</h3>
-                    <div class="actions">
-                        <button onclick="addRandomEdge()" class="btn">Додати випадковий зв'язок</button>
-                        <button onclick="showRecommendationsInPanel()" class="btn primary">Показати рекомендації</button>
+                    <div id="floating-panel" class="floating-panel glass-panel hidden">
+                        <button class="close-btn" onclick="closeFloatingPanel()"><i class="fas fa-times"></i></button>
+                        <div class="profile-header">
+                            <div class="avatar" id="panel-avatar">А</div>
+                            <h3 id="panel-name">Ім'я</h3>
+                        </div>
+                        
+                        <div class="panel-section">
+                            <h4>Інтереси</h4>
+                            <div id="panel-interests" class="interests"></div>
+                        </div>
+
+                        <div class="panel-section">
+                            <h4>Рекомендований друг</h4>
+                            <div id="panel-recommendation" class="rec-mini-card"></div>
+                        </div>
+                        
+                        <div class="actions">
+                            <button onclick="highlightSimilarNodes()" class="btn primary full-width">
+                                <i class="fas fa-magic"></i> Знайти схожих (Анімація)
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Profile Tab -->
             <div id="tab-1" class="tab-content">
-                <div class="profile-grid" id="profile-grid">
-                    <!-- Populated by JS -->
-                </div>
+                <div class="profile-grid" id="profile-grid"></div>
             </div>
             
-            <!-- Recommendations Tab -->
             <div id="tab-2" class="tab-content">
-                <h2>Рекомендовані друзі</h2>
-                <div id="recommendations-list" class="recommendations-list">
-                    <!-- Populated by JS -->
-                </div>
+                <h2>Алгоритм Cosine Similarity</h2>
+                <p class="subtitle">Рекомендації на основі векторного збігу інтересів.</p>
+                <div id="recommendations-list" class="recommendations-list mt-4"></div>
             </div>
             
-            <!-- Interests Tab -->
             <div id="tab-3" class="tab-content">
-                <h2>Всі інтереси в мережі</h2>
-                <div id="all-interests" class="interests-cloud">
-                    <!-- Populated by JS -->
-                </div>
+                <h2>Аналіз Інтересів</h2>
+                <div id="all-interests" class="interests-cloud mt-4"></div>
             </div>
         </div>
         
-        <!-- Floating Action Button -->
-        <button onclick="toggleAddMode()" id="fab" class="fab">
-            <i class="fas fa-plus"></i>
+        <button onclick="toggleAddMode()" id="fab" class="fab" title="Режим додавання/видалення зв'язків">
+            <i class="fas fa-link"></i>
         </button>
-    </div>
-    
-    <!-- Modal for connecting people -->
-    <div id="connect-modal" class="modal">
-        <div class="modal-content">
-            <h3>Зв'язок між <span id="modal-person1"></span> та <span id="modal-person2"></span></h3>
-            <div class="modal-actions">
-                <button onclick="toggleConnection()" id="connect-btn" class="btn primary">Під'єднати</button>
-                <button onclick="closeModal()" class="btn secondary">Закрити</button>
-            </div>
+
+        <div id="context-menu" class="context-menu glass-panel hidden">
+            <button id="delete-edge-btn" class="context-btn danger-text">
+                <i class="fas fa-unlink"></i> Розірвати зв'язок
+            </button>
         </div>
     </div>
     
+    <div id="toast" class="toast glass-panel hidden"></div>
+
     <script src="data.js"></script>
     <script src="graph.js"></script>
     <script src="ui.js"></script>
