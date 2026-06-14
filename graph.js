@@ -1,4 +1,4 @@
-// graph.js
+
 let svg, simulation, nodesGroup, linksGroup;
 let isAddMode = false;
 let selectedForConnection = null;
@@ -211,4 +211,76 @@ function dragended(event) {
     if (!event.active) simulation.alphaTarget(0);
     event.subject.fx = null;
     event.subject.fy = null;
+}
+// Замініть функцію initGraph та оновіть drag-функції
+function initGraph() {
+    svg = d3.select("#graph-svg");
+    svg.selectAll("*").remove();
+
+    const width = 1200; // або вкажіть ваш розмір
+    const height = 800;
+
+    simulation = d3.forceSimulation(people)
+        .force("link", d3.forceLink().id(d => d.id).distance(100).strength(0.5)) // Пружність лінків
+        .force("charge", d3.forceManyBody().strength(-300)) // Пружність відштовхування
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collide", d3.forceCollide().radius(40)); // Щоб не наповзали
+
+    linksGroup = svg.append("g").attr("class", "links");
+    nodesGroup = svg.append("g").attr("class", "nodes");
+
+    updateGraph();
+}
+
+function updateGraph() {
+    const hubId = getMostInfluentialUser(); // Знаходимо хаб
+
+    const link = linksGroup.selectAll("line").data(edges);
+    link.exit().remove();
+    link.enter().append("line")
+        .attr("stroke", "#8e2de2")
+        .attr("stroke-opacity", 0.6)
+        .merge(link);
+
+    const node = nodesGroup.selectAll("circle").data(people);
+    node.exit().remove();
+    node.enter().append("circle")
+        .attr("r", 20)
+        .merge(node)
+        .attr("fill", d => d.id === hubId ? "#ff7eb3" : "#6366f1") // Хаб рожевий
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
+
+    simulation.nodes(people);
+    simulation.force("link").links(edges.map(e => ({source: e[0], target: e[1]})));
+    simulation.alpha(1).restart();
+}
+
+function dragstarted(event, d) {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+}
+
+function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+    // Оновлення позицій негайно
+    ticked(); 
+}
+
+function dragended(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+}
+
+function ticked() {
+    linksGroup.selectAll("line")
+        .attr("x1", d => people[d[0]].x).attr("y1", d => people[d[0]].y)
+        .attr("x2", d => people[d[1]].x).attr("y2", d => people[d[1]].y);
+    nodesGroup.selectAll("circle")
+        .attr("cx", d => d.x).attr("cy", d => d.y);
 }
