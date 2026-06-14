@@ -1,4 +1,3 @@
-// ui.js
 document.addEventListener("DOMContentLoaded", () => {
     generatePeople(25);
     initGraph();
@@ -227,4 +226,18 @@ function showToast(message) {
     toastTimeout = setTimeout(() => {
         toast.classList.add("hidden");
     }, 3000);
+}
+function clearAllEdges() {
+    edges = [];
+    updateGraph();
+}
+
+function randomizeEdges() {
+    edges = [];
+    for(let i = 0; i < 40; i++) {
+        let a = Math.floor(Math.random() * people.length);
+        let b = Math.floor(Math.random() * people.length);
+        if(a !== b) edges.push([a, b]);
+    }
+    updateGraph();
 }
