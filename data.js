@@ -97,3 +97,21 @@ function removeEdge(id1, id2) {
     edges = edges.filter(e => !(e[0] === a && e[1] === b));
     return edges.length < initialLength;
 }
+// В кінець data.js
+function getMostInfluentialUser() {
+    let counts = {};
+    edges.forEach(edge => {
+        counts[edge[0]] = (counts[edge[0]] || 0) + 1;
+        counts[edge[1]] = (counts[edge[1]] || 0) + 1;
+    });
+    
+    let maxEdges = 0;
+    let userId = null;
+    for (let id in counts) {
+        if (counts[id] > maxEdges) {
+            maxEdges = counts[id];
+            userId = parseInt(id);
+        }
+    }
+    return userId;
+}
